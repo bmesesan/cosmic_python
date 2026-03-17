@@ -1,0 +1,12 @@
+# Byte-compiled / optimized / DLL files
+__pycache__
+*.py[cod]
+*$py.class
+
+# Temporary noc directory
+_tmp*
+
+# Build dir
+build
+dist
+*.egg-info
