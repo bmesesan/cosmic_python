@@ -2,7 +2,7 @@ from datetime import date
 
 from sqlalchemy import select, text
 
-from src import model
+from src.domain import model
 
 
 def test_orderline_mapper_can_load_lines(session):

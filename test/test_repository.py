@@ -1,7 +1,8 @@
 # pylint: disable=protected-access
 from sqlalchemy import text
 
-from src import model, repository
+from src.adapters import repository
+from src.domain import model
 
 
 def test_repository_can_save_a_batch(session):

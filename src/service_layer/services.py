@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from src import model
-from src.model import OrderLine
-from src.repository import AbstractRepository
+from src.adapters.repository import AbstractRepository
+from src.domain import model
+from src.domain.model import OrderLine
 
 
 class InvalidSku(Exception):

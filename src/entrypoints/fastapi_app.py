@@ -4,7 +4,10 @@ from pydantic import BaseModel
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src import config, model, orm, repository, services
+from src import config
+from src.adapters import orm, repository
+from src.domain import model
+from src.service_layer import services
 
 orm.start_mappers()
 get_session = sessionmaker(bind=create_engine(config.get_postgres_uri()))
