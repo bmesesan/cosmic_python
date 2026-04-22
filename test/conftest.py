@@ -101,10 +101,3 @@ def add_stock(postgres_session):
             dict(sku=sku),
         )
         postgres_session.commit()
-
-
-@pytest.fixture
-def restart_api():
-    (Path(__file__).parent.parent / "src/flask_app.py").touch()
-    time.sleep(0.5)
-    wait_for_webapp_to_come_up()
