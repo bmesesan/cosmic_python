@@ -33,7 +33,7 @@ class Batch:
         self._purchased_quantity = qty
         self._allocations = set()  # type: Set[OrderLine]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Batch {self.reference}>"
 
     def __eq__(self, other):
@@ -68,5 +68,4 @@ class Batch:
         return self._purchased_quantity - self.allocated_quantity
 
     def can_allocate(self, line: OrderLine) -> bool:
-        return self.sku == line.sku and self.available_quantity >= line.qty
         return self.sku == line.sku and self.available_quantity >= line.qty
