@@ -1,5 +1,14 @@
-from sqlalchemy import Column, Date, ForeignKey, Integer, MetaData, String, Table
-from sqlalchemy.orm import registry, relationship
+from sqlalchemy import (
+    Column,
+    Date,
+    ForeignKey,
+    Integer,
+    MetaData,
+    String,
+    Table,
+    inspect,
+)
+from sqlalchemy.orm import clear_mappers, registry, relationship
 
 from src.domain import model
 
@@ -35,7 +44,19 @@ allocations = Table(
 
 
 def start_mappers():
-    lines_mapper = mapper_registry.map_imperatively(
+    orderline_mapper = inspect(model.OrderLine, raiseerr=False)
+    batch_mapper = inspect(model.Batch, raiseerr=False)
+
+    # Tests and interactive runners can invoke mapper setup multiple times
+    # in one process. Keep this function safe to call repeatedly.
+    if orderline_mapper is not None and batch_mapper is not None:
+        return
+
+    # If only one mapper exists, reset and rebuild a consistent mapping state.
+    if orderline_mapper is not None or batch_mapper is not None:
+        clear_mappers()
+
+    mapper_registry.map_imperatively(
         model.OrderLine, order_lines
     )
 
@@ -48,5 +69,5 @@ def start_mappers():
                 secondary=allocations,
                 collection_class=set,
             )
-        },
+        }
     )

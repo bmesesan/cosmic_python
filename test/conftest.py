@@ -26,7 +26,7 @@ def session_factory(in_memory_db):
     clear_mappers()
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def session(session_factory):
     return session_factory()
 
