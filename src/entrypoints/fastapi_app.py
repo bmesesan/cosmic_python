@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src import config
-from src.adapters import orm, repository
+from src.adapters import orm
 from src.domain import model
 from src.service_layer import services, unit_of_work
 
@@ -34,23 +34,6 @@ class AddBatchDescriptor(BaseModel):
 class AddBatchResponse(BaseModel):
     msg: str
 
-@app.post("/allocate", status_code=status.HTTP_201_CREATED, response_model=AllocateResponse)
-def allocate_endpoint(data: AllocateDescriptor):
-    try:
-        batchref = services.allocate(
-            data.orderid,
-            data.sku,
-            data.qty,
-            unit_of_work.SqlAlchemyUnitOfWork(),
-        )
-    except (model.OutOfStock, services.InvalidSku) as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
-
-    return AllocateResponse(batchref=batchref)
-
 @app.post("/add_batch", status_code=status.HTTP_201_CREATED, response_model=AddBatchResponse)
 def add_batch(data: AddBatchDescriptor):
     try:
@@ -67,6 +50,23 @@ def add_batch(data: AddBatchDescriptor):
             detail=str(e)
         )
     return AddBatchResponse(msg="Ok")
+
+@app.post("/allocate", status_code=status.HTTP_201_CREATED, response_model=AllocateResponse)
+def allocate_endpoint(data: AllocateDescriptor):
+    try:
+        batchref = services.allocate(
+            data.orderid,
+            data.sku,
+            data.qty,
+            unit_of_work.SqlAlchemyUnitOfWork(),
+        )
+    except (model.OutOfStock, services.InvalidSku) as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+    return AllocateResponse(batchref=batchref)
 
 
 def main():

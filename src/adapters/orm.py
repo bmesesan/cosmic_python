@@ -24,12 +24,19 @@ order_lines = Table(
     Column("orderid", String(255)),
 )
 
+products = Table(
+    "products",
+    metadata,
+    Column("sku", String(255), primary_key=True),
+    Column("version_number", Integer, nullable=False, server_default="0"),
+)
+
 batches = Table(
     "batches",
     metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("reference", String(255)),
-    Column("sku", String(255)),
+    Column("sku", ForeignKey("products.sku")),
     Column("_purchased_quantity", Integer, nullable=False),
     Column("eta", Date, nullable=True),
 )
@@ -46,21 +53,28 @@ allocations = Table(
 def start_mappers():
     orderline_mapper = inspect(model.OrderLine, raiseerr=False)
     batch_mapper = inspect(model.Batch, raiseerr=False)
+    product_mapper = inspect(model.Product, raiseerr=False)
 
     # Tests and interactive runners can invoke mapper setup multiple times
     # in one process. Keep this function safe to call repeatedly.
-    if orderline_mapper is not None and batch_mapper is not None:
+    if (
+        orderline_mapper is not None
+        and batch_mapper is not None
+        and product_mapper is not None
+    ):
         return
 
     # If only one mapper exists, reset and rebuild a consistent mapping state.
-    if orderline_mapper is not None or batch_mapper is not None:
+    if (
+        orderline_mapper is not None
+        or batch_mapper is not None
+        or product_mapper is not None
+    ):
         clear_mappers()
 
-    mapper_registry.map_imperatively(
-        model.OrderLine, order_lines
-    )
+    mapper_registry.map_imperatively(model.OrderLine, order_lines)
 
-    mapper_registry.map_imperatively(
+    batch_mapper = mapper_registry.map_imperatively(
         model.Batch,
         batches,
         properties={
@@ -70,4 +84,10 @@ def start_mappers():
                 collection_class=set,
             )
         }
+    )
+
+    mapper_registry.map_imperatively(
+        model.Product,
+        products,
+        properties={"batches": relationship(batch_mapper)},
     )
