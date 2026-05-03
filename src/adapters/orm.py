@@ -7,6 +7,7 @@ from sqlalchemy import (
     String,
     Table,
     inspect,
+    event
 )
 from sqlalchemy.orm import clear_mappers, registry, relationship
 
@@ -91,3 +92,7 @@ def start_mappers():
         products,
         properties={"batches": relationship(batch_mapper)},
     )
+
+@event.listens_for(model.Product, "load")
+def receive_load(product, _):
+    product.events = []

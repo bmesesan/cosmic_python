@@ -9,7 +9,6 @@ from sqlalchemy.orm import sessionmaker
 
 from src import config
 from src.adapters import orm
-from src.domain import model
 from src.service_layer import services, unit_of_work
 
 orm.start_mappers()
@@ -44,7 +43,7 @@ def add_batch(data: AddBatchDescriptor):
             datetime.datetime.fromisoformat(data.eta).date() if data.eta else None,
             unit_of_work.SqlAlchemyUnitOfWork(),
         )
-    except (model.OutOfStock, services.InvalidSku) as e:
+    except (services.InvalidSku) as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
@@ -60,7 +59,7 @@ def allocate_endpoint(data: AllocateDescriptor):
             data.qty,
             unit_of_work.SqlAlchemyUnitOfWork(),
         )
-    except (model.OutOfStock, services.InvalidSku) as e:
+    except (services.InvalidSku) as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)

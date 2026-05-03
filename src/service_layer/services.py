@@ -12,10 +12,6 @@ class InvalidSku(Exception):
     pass
 
 
-def is_valid_sku(sku, batches):
-    return sku in {b.sku for b in batches}
-
-
 def add_batch(
     ref: str, sku: str, qty: int, eta: Optional[date],
     uow: unit_of_work.AbstractUnitOfWork,
