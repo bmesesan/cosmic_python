@@ -9,7 +9,8 @@ from sqlalchemy.orm import sessionmaker
 
 from src import config
 from src.adapters import orm
-from src.service_layer import services, unit_of_work
+from src.domain import events
+from src.service_layer import handlers, messagebus, unit_of_work
 
 orm.start_mappers()
 get_session = sessionmaker(bind=create_engine(config.get_postgres_uri()))
@@ -23,7 +24,6 @@ class AllocateDescriptor(BaseModel):
 class AllocateResponse(BaseModel):
     batchref: str
 
-
 class AddBatchDescriptor(BaseModel):
     ref: str
     sku: str
@@ -35,15 +35,14 @@ class AddBatchResponse(BaseModel):
 
 @app.post("/add_batch", status_code=status.HTTP_201_CREATED, response_model=AddBatchResponse)
 def add_batch(data: AddBatchDescriptor):
+    eta = data.eta
+    if eta is not None:
+        eta = datetime.datetime.fromisoformat(eta).date()
+
     try:
-        services.add_batch(
-            data.ref,
-            data.sku,
-            data.qty,
-            datetime.datetime.fromisoformat(data.eta).date() if data.eta else None,
-            unit_of_work.SqlAlchemyUnitOfWork(),
-        )
-    except (services.InvalidSku) as e:
+        event = events.BatchCreated(data.ref, data.sku, data.qty, eta)
+        messagebus.handle(event, unit_of_work.SqlAlchemyUnitOfWork())
+    except (handlers.InvalidSku) as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
@@ -53,13 +52,15 @@ def add_batch(data: AddBatchDescriptor):
 @app.post("/allocate", status_code=status.HTTP_201_CREATED, response_model=AllocateResponse)
 def allocate_endpoint(data: AllocateDescriptor):
     try:
-        batchref = services.allocate(
+        event = events.AllocationRequired(
             data.orderid,
             data.sku,
             data.qty,
-            unit_of_work.SqlAlchemyUnitOfWork(),
         )
-    except (services.InvalidSku) as e:
+        results = messagebus.handle(event, unit_of_work.SqlAlchemyUnitOfWork())
+        batchref = results.pop(0)
+
+    except (handlers.InvalidSku) as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
