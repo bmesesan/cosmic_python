@@ -58,7 +58,7 @@ def send_out_of_stock_notification(
     event: events.OutOfStock,
     uow: unit_of_work.AbstractUnitOfWork,
 ):
-    email.send(
+    email.send_mail(
         "stock@made.com",
         f"Out of stock for {event.sku}",
     )

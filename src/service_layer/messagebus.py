@@ -1,5 +1,4 @@
 from typing import List, Dict, Callable, Type
-from src.adapters import email
 from src.domain import events
 from src.service_layer import unit_of_work, handlers
 
