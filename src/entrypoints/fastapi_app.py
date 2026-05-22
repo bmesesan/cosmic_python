@@ -4,7 +4,7 @@ from typing import Optional
 import uvicorn
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from src import config
@@ -13,8 +13,14 @@ from src.domain import commands
 from src.service_layer import handlers, messagebus, unit_of_work
 
 orm.start_mappers()
-get_session = sessionmaker(bind=create_engine(config.get_postgres_uri()))
+engine = create_engine(config.get_postgres_uri())
+get_session = sessionmaker(bind=engine)
 app = FastAPI()
+
+
+@app.on_event("startup")
+def init_db():
+    orm.metadata.create_all(engine)
 
 class AllocateDescriptor(BaseModel):
     orderid: str
@@ -22,7 +28,7 @@ class AllocateDescriptor(BaseModel):
     qty: int
 
 class AllocateResponse(BaseModel):
-    batchref: str
+    msg: str
 
 class AddBatchDescriptor(BaseModel):
     ref: str
@@ -51,15 +57,14 @@ def add_batch(data: AddBatchDescriptor):
         )
     return AddBatchResponse(msg="Ok")
 
-@app.post("/allocate", status_code=status.HTTP_201_CREATED, response_model=AllocateResponse)
+@app.post("/allocate", status_code=status.HTTP_202_ACCEPTED, response_model=AllocateResponse)
 def allocate_endpoint(data: AllocateDescriptor):
     try:
         cmd = commands.Allocate(
             data.orderid, data.sku, data.qty
         )
 
-        results = messagebus.handle(cmd, unit_of_work.SqlAlchemyUnitOfWork())
-        batchref = results.pop(0)
+        messagebus.handle(cmd, unit_of_work.SqlAlchemyUnitOfWork())
 
     except (handlers.InvalidSku) as e:
         raise HTTPException(
@@ -67,8 +72,26 @@ def allocate_endpoint(data: AllocateDescriptor):
             detail=str(e)
         )
 
-    return AllocateResponse(batchref=batchref)
+    return AllocateResponse(msg="Ok")
 
+@app.get("/allocations/{orderid}", status_code=status.HTTP_200_OK)
+def allocations_view_endpoint(orderid: str):
+    uow = unit_of_work.SqlAlchemyUnitOfWork()
+    with uow:
+        results = uow.session.execute(
+            text(
+                """
+                SELECT sku, batchref FROM allocations_view WHERE orderid = :orderid
+                """
+            ),
+            dict(orderid=orderid),
+        )
+        allocations = [dict(r._mapping) for r in results]
+
+    if not allocations:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not found")
+
+    return allocations
 
 def main():
     uvicorn.run(app, host="0.0.0.0", port=8000)
