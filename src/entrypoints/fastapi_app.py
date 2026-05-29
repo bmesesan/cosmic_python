@@ -4,23 +4,13 @@ from typing import Optional
 import uvicorn
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
 
-from src import config
-from src.adapters import orm
 from src.domain import commands
-from src.service_layer import handlers, messagebus, unit_of_work
+from src.service_layer import handlers
+from src import bootstrap, views
 
-orm.start_mappers()
-engine = create_engine(config.get_postgres_uri())
-get_session = sessionmaker(bind=engine)
+bus = bootstrap.bootstrap()
 app = FastAPI()
-
-
-@app.on_event("startup")
-def init_db():
-    orm.metadata.create_all(engine)
 
 class AllocateDescriptor(BaseModel):
     orderid: str
@@ -49,7 +39,7 @@ def add_batch(data: AddBatchDescriptor):
         cmd = commands.CreateBatch(
             data.ref, data.sku, data.qty, eta
         )
-        messagebus.handle(cmd, unit_of_work.SqlAlchemyUnitOfWork())
+        bus.handle(cmd)
     except (handlers.InvalidSku) as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -64,7 +54,7 @@ def allocate_endpoint(data: AllocateDescriptor):
             data.orderid, data.sku, data.qty
         )
 
-        messagebus.handle(cmd, unit_of_work.SqlAlchemyUnitOfWork())
+        bus.handle(cmd)
 
     except (handlers.InvalidSku) as e:
         raise HTTPException(
@@ -76,17 +66,7 @@ def allocate_endpoint(data: AllocateDescriptor):
 
 @app.get("/allocations/{orderid}", status_code=status.HTTP_200_OK)
 def allocations_view_endpoint(orderid: str):
-    uow = unit_of_work.SqlAlchemyUnitOfWork()
-    with uow:
-        results = uow.session.execute(
-            text(
-                """
-                SELECT sku, batchref FROM allocations_view WHERE orderid = :orderid
-                """
-            ),
-            dict(orderid=orderid),
-        )
-        allocations = [dict(r._mapping) for r in results]
+    allocations = views.allocations(orderid, bus.uow)
 
     if not allocations:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not found")

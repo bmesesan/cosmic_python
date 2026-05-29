@@ -19,3 +19,10 @@ GRANT ALL PRIVILEGES ON DATABASE allocation TO allocation;
 ALTER DATABASE allocation OWNER TO allocation;
 exit
 psql -U allocation -d allocation -h localhost -p 5432 -W
+
+3. How to run local smtp server:
+    ```
+    cosmic_venv;
+    pip install aiosmtpd;
+    python -m aiosmtpd -n -l localhost:1025
+    ```
